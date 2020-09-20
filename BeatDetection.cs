@@ -23,16 +23,20 @@ namespace wave_beat
         double[][] HistoricEnergy; // Ei
         double[] AverageEnergy; // <Ei>
         Complex[] fftData;
-        double[] EnergyVariance;
+        double[] EnergyVariance; // V
         int[] bandWidths; // w
-        const double C = 200;
+        const double C = 250;
         const double V0 = 150;
-        const int windowSize = 1024;
-        const int stepSize = 512; // 0.5 * windows size
-        const int bandCount = 64;
-        const int historySize = 25; // ~0.58 sec because 43 * 1024 ~ 1 sec
+        const int windowSize = 1024; // has to be power of 2
+        const int stepSize = 256; // 0.25 * windows size
+        const int bandCount = 64; // between 20 and 64
+        const int historySize = 24; // ~0.56 sec because 43 * 1024 ~ 1 sec
+
+        // bandWidths[i] = a * (i+1) + b
+        // such that sum of bandWidths = windowSize
         const double bandWb = (4160.0 - 1024.0) / 2016.0;
         const double bandWa = 2.0 - bandWb;
+
         List<Beat> beats = new List<Beat>();
         int sampleRate;
 
