@@ -10,7 +10,10 @@ namespace BeatDetection
         BeatDetektor detektor;
         List<DetectedBeat> beats = new List<DetectedBeat>();
         int sampleRate;
+        TimeSpan time;
+        int beatCounter = 0;
 
+        public int WindowSize { get; set; } = TwoChannelWindowLen;
 
         public bool ApplyBinaryReindexingToWindow { get; set; }
 
@@ -22,56 +25,77 @@ namespace BeatDetection
 
         public void Detect(Span<short> memory)
         {
-            TimeSpan time;
-            int beatCounter = 0;
-            Span<float> window = stackalloc float[TwoChannelWindowLen];
-
-            for (int offset = 0; offset < memory.Length - TwoChannelWindowLen; offset += TwoChannelWindowLen)
+            float[] converted = new float[memory.Length];
+            
+            for (int i = 0; i < memory.Length; i++)
             {
-                for (int i = 0; i < TwoChannelWindowLen; i++)
+                converted[i] = memory[i] / 32767f; // normalize
+            }
+
+            Detect(converted);
+        }
+
+
+        public void Detect(Span<float> memory)
+        {
+            Span<float> window = stackalloc float[WindowSize];
+
+            for (int offset = 0; offset < memory.Length - WindowSize; offset += WindowSize)
+            {
+                for (int i = 0; i < WindowSize; i++)
                     window[i] = memory[offset + i];
 
-                // divide offset by 2, to get single channel 
-                // time points to the end of the window
-                time = new TimeSpan((offset / 2 + TwoChannelWindowLen / 2) * (TimeSpan.TicksPerSecond / sampleRate));
-
-                // reverse-binary reindexing (not sure if this is needed?)
-                if (ApplyBinaryReindexingToWindow)
-                {
-                    int n = (TwoChannelWindowLen / 2) << 1;
-                    int j = 1;
-                    for (int i = 1; i < n; i += 2)
-                    {
-                        if (j > i)
-                        {
-                            Swap(ref window[j - 1], ref window[i - 1]);
-                            Swap(ref window[j], ref window[i]);
-                        }
-                        int m = (TwoChannelWindowLen / 2);
-                        while (m >= 2 && j > m)
-                        {
-                            j -= m;
-                            m >>= 1;
-                        }
-                        j += m;
-                    }
-                }
-
-                LanczosFFT.Apply(TwoChannelWindowLen / 2, window);
-
-                detektor.process((float)time.TotalSeconds, window);
-
-                if (beatCounter < detektor.beat_counter)
-                {
-                    beats.Add(new DetectedBeat
-                    {
-                        TimeOffset = time,
-                        StrongestFrequency = GetStrongestFrequency(),
-                    });
-                    beatCounter = detektor.beat_counter;
-                }
+                DetectStep(window);
             }
             Console.WriteLine("Detection finished: avg BPM: {0}", detektor.win_bpm_int / 10);
+        }
+
+        /// <summary>
+        /// Perform a single detection step for data of size <see cref="TwoChannelWindowLen"/>.
+        /// </summary>
+        public void DetectStep(Span<float> window)
+        {
+            if (window.Length != WindowSize)
+                throw new InvalidOperationException("Provided data window ");
+
+            // time points to the end of the window
+            time += new TimeSpan((WindowSize / 2) * (TimeSpan.TicksPerSecond / sampleRate));
+
+            // reverse-binary reindexing (not sure if this is needed?)
+            if (ApplyBinaryReindexingToWindow)
+            {
+                int n = (WindowSize / 2) << 1;
+                int j = 1;
+                for (int i = 1; i < n; i += 2)
+                {
+                    if (j > i)
+                    {
+                        Swap(ref window[j - 1], ref window[i - 1]);
+                        Swap(ref window[j], ref window[i]);
+                    }
+                    int m = (WindowSize / 2);
+                    while (m >= 2 && j > m)
+                    {
+                        j -= m;
+                        m >>= 1;
+                    }
+                    j += m;
+                }
+            }
+
+            LanczosFFT.Apply(WindowSize / 2, window);
+
+            detektor.process((float)time.TotalSeconds, window);
+
+            if (beatCounter < detektor.beat_counter)
+            {
+                beats.Add(new DetectedBeat
+                {
+                    TimeOffset = time,
+                    StrongestFrequency = GetStrongestFrequency(),
+                });
+                beatCounter = detektor.beat_counter;
+            }
         }
 
         public List<DetectedBeat> GetBeats() => beats;
