@@ -2,21 +2,20 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
-using Stride.Core;
 
-namespace wave_beat
+namespace BeatDetection
 {
-    struct Beat
+    public struct DetectedBeat
     {
-        public TimeSpan AsTime;
-        public int AsOffset;
-        public ulong Bands; // bit mask
+        public TimeSpan TimeOffset;
+        public double StrongestFrequency;
     }
 
     // Following https://www.gamedev.net/tutorials/_/technical/math-and-physics/beat-detection-algorithms-r1952/
     // Below I implemented _Frequency selected sound energy algorithm #2_
     // with energy variance. It can handle clear percussion but fails with vocals.
-    unsafe class BeatDetection
+    [Obsolete]
+    public unsafe class BeatDetection : IBeatDetection
     {
         double[] FourierScore; // B
         double[] CurrentWindowEnergy; // Es
@@ -37,31 +36,17 @@ namespace wave_beat
         const double bandWb = (4160.0 - 1024.0) / 2016.0;
         const double bandWa = 2.0 - bandWb;
 
-        List<Beat> beats = new List<Beat>();
+        List<DetectedBeat> beats = new List<DetectedBeat>();
         int sampleRate;
 
         // input data
         short[] leftChannel;
         short[] rightChannel;
 
-        public BeatDetection(UnmanagedArray<byte> memory, int dataLen, int sampleRate)
+        public BeatDetection(int sampleRate)
         {
             this.sampleRate = sampleRate;
-            leftChannel = new short[dataLen / 2 / sizeof(short)];
-            rightChannel = new short[dataLen / 2 / sizeof(short)];
-
-            // copy pcm data into left/right channel arrays
-            unsafe {
-                byte* ptr = (byte*)memory.Pointer;
-                int idx = 0;
-                for (int i = 0; i < dataLen; i += 2 * sizeof(short))
-                {
-                    leftChannel[idx] = *(short*)(ptr + i);
-                    rightChannel[idx] = *(short*)(ptr + i + sizeof(short));
-                    idx++;
-                }
-            }
-
+            
             FourierScore = new double[windowSize];
             CurrentWindowEnergy = new double[bandCount];
             HistoricEnergy = new double[bandCount][];
@@ -75,8 +60,19 @@ namespace wave_beat
             Debug.Assert(bandWidths.Sum() == 1024, $"{bandWidths.Sum()} != 1024");
         }
 
-        public void Detect()
+        public void Detect(Span<short> memory)
         {
+            // TODO: rewrite this into stackallocked windows like V2
+            leftChannel = new short[memory.Length / 2];
+            rightChannel = new short[memory.Length / 2];
+
+            // copy pcm data into left/right channel arrays
+            for (int i = 0; i < memory.Length; i += 2)
+            {
+                leftChannel[i / 2] = memory[i];
+                rightChannel[i / 2] = memory[i + 1];
+            }
+
             for (int offset = 0; offset < leftChannel.Length - windowSize; offset += stepSize)
             {
                 var windowL = new Span<short>(leftChannel, offset, windowSize);
@@ -97,18 +93,33 @@ namespace wave_beat
                 UpdateHistory();
 
                 var bandsAbove = CurrentEnergyAboveLocalLimit();
-                if(bandsAbove > 0)
-                    beats.Add(new Beat {
-                        AsOffset = offset,
-                        AsTime = new TimeSpan((offset + windowSize/2) * (TimeSpan.TicksPerSecond / sampleRate)),
-                        Bands = bandsAbove,
+                if (bandsAbove > 0)
+                    beats.Add(new DetectedBeat {
+                        TimeOffset = new TimeSpan((offset + windowSize/2) * (TimeSpan.TicksPerSecond / sampleRate)),
+                        StrongestFrequency = GetStrongestFrequency(),
                     });
             }
         }
 
-        public List<Beat> GetBeats()
+        public List<DetectedBeat> GetBeats()
         {
             return beats;
+        }
+
+        private double GetStrongestFrequency()
+        {
+            double m = 0;
+            double mIdx = 0;
+            for (int i = 0; i < FourierScore.Length; i++)
+            {
+                if (FourierScore[i] > m)
+                {
+                    m = FourierScore[i];
+                    mIdx = i / FourierScore.Length;
+                }
+            }
+
+            return mIdx;
         }
 
         private ulong CurrentEnergyAboveLocalLimit()

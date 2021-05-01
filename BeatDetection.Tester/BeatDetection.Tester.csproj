@@ -1,13 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Stride.Audio" Version="4.0.0.1-beta04-1265" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BeatDetection\BeatDetection.csproj" />
   </ItemGroup>
 
 </Project>

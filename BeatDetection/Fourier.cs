@@ -3,14 +3,14 @@
 using System;
 using System.Threading;
 
-namespace wave_beat
+namespace BeatDetection
 {
     // based on .NET and unmanaged tests, Richard Grimes 2005 (http://www.grimes.demon.co.uk/dotnet/man_unman.htm)
 
     // The original code is the fft package by Takuya OOURA
     // from http://momonga.t.u-tokyo.ac.jp/~ooura/fft.html
 
-    public unsafe class Fourier
+    internal unsafe class Fourier
     {
         // Constants
         const double M_PI_2 = 1.570796326794896619231321691639751442098584699687;

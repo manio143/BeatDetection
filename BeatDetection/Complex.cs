@@ -1,16 +1,13 @@
 // Copyright (c) 2006, 2007 by Hugh Pyle, inguzaudio.com
 // MIT Licensed at https://github.com/hughpyle/inguz-DSPUtil
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace wave_beat
+namespace BeatDetection
 {
     /// <summary>
     /// Implementation of a double-precision (64-bit float) complex number
     /// </summary>
-    //[Serializable]
-    public struct Complex
+    internal struct Complex
     {
         // Real and Imaginary parts of a Complex number
         public double Re;

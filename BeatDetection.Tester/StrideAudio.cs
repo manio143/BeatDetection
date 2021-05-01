@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Stride.Audio;
 using Stride.Core;
 
-namespace wave_beat
+namespace BeatDetection
 {
     class StrideAudio : IDisposable
     {
