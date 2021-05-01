@@ -14,7 +14,7 @@ namespace BeatDetection
     // Following https://www.gamedev.net/tutorials/_/technical/math-and-physics/beat-detection-algorithms-r1952/
     // Below I implemented _Frequency selected sound energy algorithm #2_
     // with energy variance. It can handle clear percussion but fails with vocals.
-    [Obsolete]
+    [Obsolete("Use " + nameof(BeatDetectionV2) + " instead.")]
     public unsafe class BeatDetection : IBeatDetection
     {
         double[] FourierScore; // B
@@ -115,7 +115,7 @@ namespace BeatDetection
                 if (FourierScore[i] > m)
                 {
                     m = FourierScore[i];
-                    mIdx = i / FourierScore.Length;
+                    mIdx = (double)i / (double)FourierScore.Length;
                 }
             }
 
